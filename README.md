@@ -41,6 +41,14 @@ git clone https://github.com/Sidsuresh/dsp_at3_group_17.git
 cd dsp_at3_group17
 ```
 
+- Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate        # (Mac/Linux)
+venv\Scripts\activate           # (Windows)
+```
+
 - Install dependencies:
 
 ```bash
@@ -64,6 +72,7 @@ python --version
 - altair==4.2.0
 - pandas==2.0.3
 - streamlit==1.13.0
+- numpy==1.26.4
 
 ## How to Run the Program
 
