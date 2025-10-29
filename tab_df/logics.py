@@ -78,6 +78,12 @@ class Dataset:
         -> None
 
         """
+
+        # Check file type
+        if not (self.file_path.name.endswith('.csv') or self.file_path.type == 'text/csv'):
+            self.df = None
+            return
+    
         if self.df is None:
             # Try to automatically detect the delimiter
             sample = self.file_path.read(2048).decode("utf-8")
