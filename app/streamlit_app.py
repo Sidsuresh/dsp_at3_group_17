@@ -49,7 +49,7 @@ if st.session_state.file_path is not None:
         display_tab_df_content(file_path=st.session_state.file_path)
     with tab_num:
         display_tab_num_content(df=st.session_state.dataset.df)
-    # with tab_text:
-    #     display_tab_text_content(df=st.session_state.dataset.df)
+    with tab_text:
+        display_tab_text_content(df=st.session_state.dataset.df)
     with tab_date:
         display_tab_date_content(df=st.session_state.dataset.df)
