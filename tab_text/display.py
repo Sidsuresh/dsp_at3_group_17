@@ -28,3 +28,7 @@ def display_tab_text_content(file_path=None, df=None):
 
     """
     
+    # Check if df is provided
+    if df is None:
+        st.warning("No valid CSV loaded. Please upload a CSV file to see analysis.")
+        return

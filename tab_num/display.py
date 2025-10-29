@@ -27,9 +27,9 @@ def display_tab_num_content(file_path=None, df=None):
     -> None
 
     """
-
+    # Check if df is provided
     if df is None:
-        st.warning("No valid CSV loaded. Please upload a CSV file to see numeric analysis.")
+        st.warning("No valid CSV loaded. Please upload a CSV file to see analysis.")
         return
 
     # Instantiate NumericColumn class and set it into Streamlit session state

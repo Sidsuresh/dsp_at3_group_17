@@ -28,8 +28,9 @@ def display_tab_date_content(file_path=None, df=None):
 
     """
 
+    # Check if df is provided
     if df is None:
-        st.warning("No valid CSV loaded. Please upload a CSV file to see numeric analysis.")
+        st.warning("No valid CSV loaded. Please upload a CSV file to see analysis.")
         return
 
     # Instantiate DateColumn class and set it into Streamlit session state

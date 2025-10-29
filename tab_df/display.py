@@ -32,8 +32,8 @@ def display_tab_df_content(file_path):
     # Call set_df() method to load the dataframe
     st.session_state.dataset.set_df()
 
-    if st.session_state["df"] is None:
-        st.warning("No valid CSV loaded. Please upload a CSV file to see numeric analysis.")
+    if st.session_state.dataset.df is None:
+        st.warning("No valid CSV loaded. Please upload a CSV file to see analysis.")
         return
     
     # Call set_data() method to compute all information
