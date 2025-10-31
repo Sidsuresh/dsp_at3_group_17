@@ -1,34 +1,85 @@
+"""
+tab_text/display.py
+====================
+Front-end Streamlit component for the Text Serie tab.
+It lets the user:
+1. Select a text column
+2. View summary statistics
+3. See a frequency bar chart
+4. Inspect the top 20 most frequent values
+
+Author: Sabrin Sultana (Student C)
+"""
+
 import streamlit as st
+import pandas as pd
+import altair as alt
 
-from tab_text.logics import TextColumn
+from tab_text.logics import get_text_columns, build_text_summary, top_frequencies
 
-def display_tab_text_content(file_path=None, df=None):
+
+# ---------------------------------------------------------------------------
+# Streamlit Rendering
+# ---------------------------------------------------------------------------
+
+def display_tab_text_content(df: pd.DataFrame) -> None:
     """
-    --------------------
-    Description
-    --------------------
-    -> display_tab_text_content (function): Function that will instantiate tab_text.logics.TextColumn class, save it into Streamlit session state and call its tab_text.logics.TextColumn.find_text_cols() method in order to find all text columns.
-    Then it will display a Streamlit select box with the list of text columns found.
-    Once the user select a text column from the select box, it will call the tab_text.logics.TextColumn.set_data() method in order to compute all the information to be displayed.
-    Then it will display a Streamlit Expander container with the following contents:
-    - the results of tab_text.logics.TextColumn.get_summary() as a Streamlit Table
-    - the graph from tab_text.logics.TextColumn.histogram using Streamlit.altair_chart()
-    - the results of tab_text.logics.TextColumn.frequent using Streamlit.write
- 
-    --------------------
-    Parameters
-    --------------------
-    -> file_path (str): File path to uploaded CSV file (optional)
-    -> df (pd.DataFrame): Loaded dataframe (optional)
+    Render Text Serie tab content inside the Streamlit application.
 
-    --------------------
-    Returns
-    --------------------
-    -> None
-
+    Args:
+        df (pd.DataFrame): The uploaded dataset stored in session_state["df"].
     """
-    
-    # Check if df is provided
-    if df is None:
-        st.warning("No valid CSV loaded. Please upload a CSV file to see analysis.")
+    st.header("Text Serie")
+
+    text_columns = get_text_columns(df)
+    if not text_columns:
+        st.warning("No text columns detected in this dataset.")
         return
+
+    # persist previous selection for better UX
+    key_name = "selected_text_col"
+    default_idx = 0
+    current = st.session_state.get(key_name, text_columns[default_idx])
+
+    selected_col = st.selectbox(
+        "Which text column do you want to explore",
+        text_columns,
+        index=text_columns.index(current) if current in text_columns else default_idx,
+        key=key_name,
+    )
+
+    series = df[selected_col]
+
+    # -----------------------------------------------------------------------
+    # 1️⃣ Summary Table
+    # -----------------------------------------------------------------------
+    with st.expander("Text Column", expanded=True):
+        st.caption("Summary statistics for selected text column.")
+        summary_df = build_text_summary(series)
+        st.table(summary_df)
+
+    # -----------------------------------------------------------------------
+    # 2️⃣ Frequency Bar Chart
+    # -----------------------------------------------------------------------
+    st.subheader("Bar Chart")
+    freq = series.value_counts(dropna=False).reset_index()
+    freq.columns = [selected_col, "Count"]
+
+    chart = (
+        alt.Chart(freq)
+        .mark_bar(color="#4C78A8")  # maintain blue tone from professor’s theme
+        .encode(
+            x=alt.X(f"{selected_col}:N", sort="-y", title=selected_col),
+            y=alt.Y("Count:Q", title="Count of Records"),
+            tooltip=[selected_col, "Count"],
+        )
+        .properties(width="container", height=420)
+    )
+    st.altair_chart(chart, use_container_width=True)
+
+    # -----------------------------------------------------------------------
+    # 3️⃣ Top-20 Frequency Table
+    # -----------------------------------------------------------------------
+    st.subheader("Most Frequent Values")
+    top20_df = top_frequencies(series, top_n=20)
+    st.dataframe(top20_df, use_container_width=True)

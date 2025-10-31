@@ -1,370 +1,128 @@
+"""
+tab_text/logics.py
+===================
+This module contains all backend logic used by the Text Serie tab.
+It analyses textual (object/string) columns and produces:
+- Summary statistics
+- Frequency tables
+
+Author: Sabrin Sultana (Student C)
+"""
+
 import pandas as pd
-import altair as alt
+from typing import List
 
-class TextColumn:
+
+# ---------------------------------------------------------------------------
+# Helper Functions
+# ---------------------------------------------------------------------------
+
+def get_text_columns(df: pd.DataFrame) -> List[str]:
     """
-    --------------------
-    Description
-    --------------------
-    -> TextColumn (class): Class that manages a column from a dataframe of text data type
+    Identify all text-based columns in a DataFrame.
 
-    --------------------
-    Attributes
-    --------------------
-    -> file_path (str): Path to the uploaded CSV file (optional)
-    -> df (pd.Dataframe): Pandas dataframe (optional)
-    -> cols_list (list): List of columns names of dataset that are text type (default set to empty list)
-    -> serie (pd.Series): Pandas serie where the content of a column has been loaded (default set to None)
-    -> n_unique (int): Number of unique value of a serie (default set to None)
-    -> n_missing (int): Number of missing values of a serie (default set to None)
-    -> n_empty (int): Number of times a serie has empty value (default set to None)
-    -> n_mode (int): Mode value of a serie (default set to None)
-    -> n_space (int): Number of times a serie has only space characters (default set to None)
-    -> n_lower (int): Number of times a serie has only lowercase characters (default set to None)
-    -> n_upper (int): Number of times a serie has only uppercase characters (default set to None)
-    -> n_alpha (int): Number of times a serie has only alphabetical characters (default set to None)
-    -> n_digit (int): Number of times a serie has only digit characters (default set to None)
-    -> barchart (alt.Chart): Altair barchart displaying the count for each value of a serie (default set to empty)
-    -> frequent (pd.DataFrame): Datframe containing the most frequest value of a serie (default set to empty)
+    Args:
+        df (pd.DataFrame): The uploaded dataset.
 
+    Returns:
+        List[str]: Column names with dtype 'object' or string-like.
     """
-    def __init__(self, file_path=None, df=None):
-        self.file_path = file_path
-        self.df = df
-        self.cols_list = []
-        self.serie = None
-        self.n_unique = None
-        self.n_missing = None
-        self.n_empty  = None
-        self.n_mode = None
-        self.n_space = None
-        self.n_lower = None
-        self.n_upper = None
-        self.n_alpha = None
-        self.n_digit = None
-        self.barchart = alt.Chart()
-        self.frequent = pd.DataFrame(columns=['value', 'occurrence', 'percentage'])
-    
-    def find_text_cols(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> find_text_cols (method): Class method that will load the uploaded CSV file as Pandas DataFrame and store it as attribute (self.df) if it hasn't been provided before.
-        Then it will find all columns of text data type and store the results in the relevant attribute (self.cols_list).
+    return [
+        col for col in df.columns
+        if df[col].dtype == "object" or pd.api.types.is_string_dtype(df[col])
+    ]
 
-        --------------------
-        Parameters
-        --------------------
-        -> None
 
-        --------------------
-        Returns
-        --------------------
-        -> None
+def _convert_to_string(series: pd.Series) -> pd.Series:
+    """
+    Convert any Series to pandas StringDtype safely, preserving NaN.
 
-        """
-        
+    Args:
+        series (pd.Series): Input column.
 
-    def set_data(self, col_name):
-        """
-        --------------------
-        Description
-        --------------------
-        --------------------
-        Description
-        --------------------
-        -> set_data (method): Class method that sets the self.serie attribute with the relevant column from the dataframe and then computes all requested information from self.serie to be displayed in the Text section of Streamlit app 
+    Returns:
+        pd.Series: Series converted to StringDtype.
+    """
+    if pd.api.types.is_string_dtype(series):
+        return series.astype("string")
+    return series.astype("string", errors="ignore")
 
-        --------------------
-        Parameters
-        --------------------
-        -> col_name (str): Name of the text column to be analysed
 
-        --------------------
-        Returns
-        --------------------
-        -> None
-        """
-        
+# ---------------------------------------------------------------------------
+# Core Analysis Functions
+# ---------------------------------------------------------------------------
 
-    def convert_serie_to_text(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> convert_serie_to_text (method): Class method that convert a Pandas Series to text data type and store the results in the relevant attribute (self.serie).
+def build_text_summary(series: pd.Series) -> pd.DataFrame:
+    """
+    Compute all summary metrics for a text column.
 
-        --------------------
-        Parameters
-        --------------------
-        -> None
+    Metrics returned follow professor’s assignment specification:
+    - Number of Unique Values
+    - Number of Rows with Missing Values
+    - Number of Empty Rows
+    - Number of Rows with Only Whitespaces
+    - Number of Rows with Only Lowercases
+    - Number of Rows with Only Uppercases
+    - Number of Rows with Only Alphabet
+    - Number of Rows with Only Digits
+    - Mode Value
 
-        --------------------
-        Returns
-        --------------------
-        -> None
+    Args:
+        series (pd.Series): Text column selected by the user.
 
-        """
-        
+    Returns:
+        pd.DataFrame: Two-column summary table: Description | Value
+    """
+    s = _convert_to_string(series)
+    total = len(s)
+    missing = s.isna().sum()
+    s_filled = s.fillna("")
 
-    def is_serie_none(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> is_serie_none (method): Class method that checks if self.serie is empty or none 
+    # pattern checks
+    empty = (s_filled == "").sum()
+    whitespace_only = s_filled.str.fullmatch(r"\s+").sum()
+    lower_only = s_filled.str.fullmatch(r"[a-z]+").sum()
+    upper_only = s_filled.str.fullmatch(r"[A-Z]+").sum()
+    alpha_only = s_filled.str.fullmatch(r"[A-Za-z]+").sum()
+    digits_only = s_filled.str.fullmatch(r"\d+").sum()
 
-        --------------------
-        Parameters
-        --------------------
-        -> None
+    # mode value
+    mode_val = "N/A"
+    mode_series = s.dropna().mode()
+    if not mode_series.empty:
+        mode_val = str(mode_series.iloc[0])
 
-        --------------------
-        Returns
-        --------------------
-        -> (bool): Flag stating if the serie is empty or not
+    summary = [
+        ("Number of Unique Values", int(s.nunique(dropna=True))),
+        ("Number of Rows with Missing Values", int(missing)),
+        ("Number of Empty Rows", int(empty)),
+        ("Number of Rows with Only Whitespaces", int(whitespace_only)),
+        ("Number of Rows with Only Lowercases", int(lower_only)),
+        ("Number of Rows with Only Uppercases", int(upper_only)),
+        ("Number of Rows with Only Alphabet", int(alpha_only)),
+        ("Number of Rows with Only Digits", int(digits_only)),
+        ("Mode Value", mode_val),
+    ]
 
-        """
-        
+    return pd.DataFrame(summary, columns=["Description", "Value"])
 
-    def set_unique(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_unique (method): Class method that computes the number of unique value of a serie and store the results in the relevant attribute(self.n_unique).
 
-        --------------------
-        Parameters
-        --------------------
-        -> None
+def top_frequencies(series: pd.Series, top_n: int = 20) -> pd.DataFrame:
+    """
+    Generate frequency table for top N values of a text column.
 
-        --------------------
-        Returns
-        --------------------
-        -> None
+    Args:
+        series (pd.Series): Text column.
+        top_n (int, optional): Number of top items to return. Default = 20.
 
-        """
-        
-
-    def set_missing(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_missing (method): Class method that computes the number of missing value of a serie and store the results in the relevant attribute(self.n_missing).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_empty(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_empty (method): Class method that computes the number of times a serie has empty value and store the results in the relevant attribute(self.n_empty).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_mode(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_mode (method): Class method that computes the mode value of a serie and store the results in the relevant attribute(self.n_mode).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_whitespace(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_whitespace (method): Class method that computes the number of times a serie has only space characters and store the results in the relevant attribute(self.n_space).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_lowercase(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_lowercase (method): Class method that computes the number of times a serie has only lowercase characters and store the results in the relevant attribute(self.n_lower).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_uppercase(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_uppercase (method): Class method that computes the number of times a serie has only uppercase characters and store the results in the relevant attribute(self.n_upper).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-    
-    def set_alphabet(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_alphabet (method): Class method that computes the number of times a serie has only alphabetical characters and store the results in the relevant attribute(self.n_alpha).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_digit(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_digit (method): Class method that computes the number of times a serie has only digit characters and store the results in the relevant attribute(self.n_digit).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def set_barchart(self):  
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_barchart (method): Class method that computes the Altair barchart displaying the count for each value of a serie and store the results in the relevant attribute(self.barchart).
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-      
-    def set_frequent(self, end=20):
-        """
-        --------------------
-        Description
-        --------------------
-        -> set_frequent (method): Class method that computes the Dataframe containing the most frequest value of a serie and store the results in the relevant attribute(self.frequent).
-
-        --------------------
-        Parameters
-        --------------------
-        -> end (int):
-            Parameter indicating the maximum number of values to be displayed
-
-        --------------------
-        Returns
-        --------------------
-        -> None
-
-        """
-        
-
-    def get_summary(self):
-        """
-        --------------------
-        Description
-        --------------------
-        -> get_summary_df (method): Class method that formats all requested information from self.serie to be displayed in the Overall section of Streamlit app as a Pandas dataframe with 2 columns: Description and Value
-
-        --------------------
-        Parameters
-        --------------------
-        -> None
-
-        --------------------
-        Returns
-        --------------------
-        -> (pd.DataFrame): Formatted dataframe to be displayed on the Streamlit app
-
-        """
-        
+    Returns:
+        pd.DataFrame: Columns [value, occurrence, percentage]
+    """
+    total = len(series)
+    counts = series.value_counts(dropna=False).head(top_n)
+    df_out = pd.DataFrame({
+        "value": counts.index.astype(str),
+        "occurrence": counts.values,
+        "percentage": (counts.values / total).round(4),
+    })
+    return df_out
