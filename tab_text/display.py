@@ -48,13 +48,13 @@ def display_tab_text_content(df: pd.DataFrame) -> None:
         key=key_name,
     )
 
-    if selected_col is None:
+if selected_col is None:
     st.warning("Please select a text column to explore.")
     return
 
 if selected_col not in df.columns:
     st.error(f"Column '{selected_col}' not found in the dataset.")
-    return
+    return  
 
 series = df[selected_col]
 
