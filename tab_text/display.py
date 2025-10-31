@@ -11,7 +11,7 @@ Responsibilities:
 • Display a frequency bar chart using Altair.
 • Display the top 20 most frequent text values.
 
-Author: Shakib Ahmed Chowdhury (Student C)
+Author: Sabrin Sultana (Student C)
 Date: 2025-10-31
 """
 
