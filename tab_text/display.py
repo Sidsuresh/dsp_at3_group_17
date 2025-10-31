@@ -1,105 +1,81 @@
-"""
-tab_text/display.py
-====================
-
-Frontend logic for the "Text Serie" tab of the CSV Explorer app.
-
-Responsibilities:
------------------
-• Display a dropdown of text columns detected in the dataset.
-• Show summary statistics for the selected text column.
-• Display a frequency bar chart using Altair.
-• Display the top 20 most frequent text values.
-
-Author: Sabrin Sultana (Student C)
-Date: 2025-10-31
-"""
-
+# tab_text/display.py
+from __future__ import annotations
 import streamlit as st
 import pandas as pd
-import altair as alt
 
-from tab_text.logics import get_text_columns, build_text_summary, top_frequencies
+from tab_text.logics import TextColumn
 
 
-# ---------------------------------------------------------------------------
-# MAIN DISPLAY FUNCTION
-# ---------------------------------------------------------------------------
-
-def display_tab_text_content(df: pd.DataFrame):
+def display_tab_text_content(file_path: str | None = None, df: pd.DataFrame | None = None):
     """
-    Main entry point for the Text Serie tab.
-    Allows the user to explore textual columns of the dataset.
+    UI for the Text Series tab.
 
-    Args:
-        df (pd.DataFrame): DataFrame loaded from the uploaded CSV file.
+    Fixes included:
+      - Stable 'selectbox' keyed via session_state so selection doesn't reset.
+      - Avoids rebuilding options with a changing default on each rerun.
+      - Works whether the app passes a loaded df or just a CSV file_path.
     """
+    st.header("📝 Text Series Analysis")
 
-    st.header("📑 Text Series Analysis")
+    # Instantiate once per run and cache on session_state
+    if "text_column_mgr" not in st.session_state:
+        st.session_state["text_column_mgr"] = TextColumn(file_path=file_path, df=df)
+    else:
+        # Keep df/file_path up to date if caller re-runs with new values
+        mgr: TextColumn = st.session_state["text_column_mgr"]
+        if df is not None:
+            mgr.df = df
+        if file_path is not None:
+            mgr.file_path = file_path
 
-    # -----------------------------------------------------------------------
-    # Detect all text columns
-    # -----------------------------------------------------------------------
-    text_columns = get_text_columns(df)
+    mgr: TextColumn = st.session_state["text_column_mgr"]
+    text_cols = mgr.find_text_cols()
 
-    if not text_columns:
-        st.warning("⚠️ No text columns detected in this dataset.")
+    if not text_cols:
+        st.warning("No text columns found in the dataset.")
         return
 
-    # -----------------------------------------------------------------------
-    # Column selection box (dropdown)
-    # -----------------------------------------------------------------------
-    key_name = "selected_text_col"
-    default_idx = 0
-    current = st.session_state.get(key_name, text_columns[default_idx])
+    # Persist selection across reruns with a unique key
+    # Initialize the default selection exactly once
+    if "text_col_selected" not in st.session_state:
+        st.session_state["text_col_selected"] = text_cols[0]
 
     selected_col = st.selectbox(
         "Which text column do you want to explore?",
-        text_columns,
-        index=text_columns.index(current) if current in text_columns else default_idx,
-        key=key_name,
+        options=text_cols,
+        index=text_cols.index(st.session_state["text_col_selected"])
+        if st.session_state["text_col_selected"] in text_cols
+        else 0,
+        key="text_col_selected",
+        help="Choose a text column to see summary, an interactive bar chart, and top-20 frequent values.",
     )
 
-    # -----------------------------------------------------------------------
-    # Defensive checks to avoid KeyError or crash
-    # -----------------------------------------------------------------------
-    if selected_col is None:
-        st.warning("Please select a text column to explore.")
+    # Guard: nothing selected
+    if not selected_col:
+        st.info("Please select a text column to explore.")
         return
 
-    if selected_col not in df.columns:
-        st.error(f"Column '{selected_col}' not found in the dataset.")
-        return
+    # ----- Summary expander -----
+    with st.expander("Text Column", expanded=True):
+        try:
+            summary_df = mgr.get_summary(selected_col)
+            st.table(summary_df)
+        except Exception as e:
+            st.error(f"Failed to compute summary for '{selected_col}': {e}")
+            return
 
-    # -----------------------------------------------------------------------
-    # Extract and analyze the selected column
-    # -----------------------------------------------------------------------
-    series = df[selected_col]
+    # ----- Chart expander -----
+    with st.expander("Bar Chart", expanded=True):
+        try:
+            chart = mgr.bar_chart(selected_col)
+            st.altair_chart(chart, use_container_width=True)
+        except Exception as e:
+            st.error(f"Failed to render chart for '{selected_col}': {e}")
 
-    st.subheader(f"📊 Summary Statistics for '{selected_col}'")
-    summary_df = build_text_summary(series)
-    st.table(summary_df)
-
-    # -----------------------------------------------------------------------
-    # Frequency Chart (Altair)
-    # -----------------------------------------------------------------------
-    st.subheader("📈 Value Distribution")
-
-    freq_df = top_frequencies(series, top_n=20)
-    chart = (
-        alt.Chart(freq_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("value:N", sort="-y", title="Text Values"),
-            y=alt.Y("occurrence:Q", title="Occurrences"),
-            tooltip=["value", "occurrence", "percentage"]
-        )
-        .properties(width=700, height=400)
-    )
-    st.altair_chart(chart, use_container_width=True)
-
-    # -----------------------------------------------------------------------
-    # Display Top 20 frequent values
-    # -----------------------------------------------------------------------
-    st.subheader("📋 Top 20 Most Frequent Values")
-    st.dataframe(freq_df)
+    # ----- Top frequent -----
+    with st.expander("Most Frequent Values", expanded=True):
+        try:
+            top_df = mgr.frequent(selected_col, top_n=20)
+            st.dataframe(top_df, use_container_width=True)
+        except Exception as e:
+            st.error(f"Failed to compute frequent values for '{selected_col}': {e}")

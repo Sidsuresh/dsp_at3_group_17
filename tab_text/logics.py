@@ -1,128 +1,159 @@
-"""
-tab_text/logics.py
-===================
-This module contains all backend logic used by the Text Serie tab.
-It analyses textual (object/string) columns and produces:
-- Summary statistics
-- Frequency tables
-
-Author: Sabrin Sultana (Student C)
-"""
-
+# tab_text/logics.py
+from __future__ import annotations
 import pandas as pd
-from typing import List
+import numpy as np
+import altair as alt
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 
-# ---------------------------------------------------------------------------
-# Helper Functions
-# ---------------------------------------------------------------------------
-
-def get_text_columns(df: pd.DataFrame) -> List[str]:
+@dataclass
+class TextColumn:
     """
-    Identify all text-based columns in a DataFrame.
-
-    Args:
-        df (pd.DataFrame): The uploaded dataset.
-
-    Returns:
-        List[str]: Column names with dtype 'object' or string-like.
+    Manage text-column exploration and compute:
+      - summary table
+      - value frequency chart (Altair)
+      - top-20 frequent values table
     """
-    return [
-        col for col in df.columns
-        if df[col].dtype == "object" or pd.api.types.is_string_dtype(df[col])
-    ]
+    file_path: Optional[str] = None
+    df: Optional[pd.DataFrame] = None
+    cols_list: List[str] = field(default_factory=list)
 
+    # ---------- lifecycle ----------
 
-def _convert_to_string(series: pd.Series) -> pd.Series:
-    """
-    Convert any Series to pandas StringDtype safely, preserving NaN.
+    def _ensure_df(self) -> pd.DataFrame:
+        if self.df is not None:
+            return self.df
+        if self.file_path is None:
+            raise ValueError("Either df or file_path must be provided.")
+        # Lazy CSV load with dtype inference left to pandas
+        return pd.read_csv(self.file_path)
 
-    Args:
-        series (pd.Series): Input column.
+    def find_text_cols(self) -> List[str]:
+        """
+        Detect text-like columns (object, string, category).
+        """
+        df = self._ensure_df()
+        text_df = df.select_dtypes(include=["object", "string", "category"])
+        self.cols_list = list(text_df.columns)
+        return self.cols_list
 
-    Returns:
-        pd.Series: Series converted to StringDtype.
-    """
-    if pd.api.types.is_string_dtype(series):
-        return series.astype("string")
-    return series.astype("string", errors="ignore")
+    # ---------- computations for a selected column ----------
 
+    def get_summary(self, column: str) -> pd.DataFrame:
+        """
+        Return a 2-column dataframe with the metrics specified in the assignment.
+        All checks are done safely with NA handling.
+        """
+        s = self._ensure_df()[column]
 
-# ---------------------------------------------------------------------------
-# Core Analysis Functions
-# ---------------------------------------------------------------------------
+        # Treat only strings for regex checks, but keep NA logic correct
+        s_str = s.astype(str)
 
-def build_text_summary(series: pd.Series) -> pd.DataFrame:
-    """
-    Compute all summary metrics for a text column.
+        # Metrics
+        n_unique = s.nunique(dropna=True)
+        n_missing = int(s.isna().sum())
+        n_empty = int((s == "").sum(skipna=True))
+        n_only_whitespace = int(s_str.str.fullmatch(r"\s+").fillna(False).sum())
+        n_only_lower = int(s_str.str.fullmatch(r"[a-z]+").fillna(False).sum())
+        n_only_upper = int(s_str.str.fullmatch(r"[A-Z]+").fillna(False).sum())
+        n_only_alpha = int(s_str.str.fullmatch(r"[A-Za-z]+").fillna(False).sum())
+        n_only_digits = int(s_str.str.fullmatch(r"\d+").fillna(False).sum())
 
-    Metrics returned follow professor’s assignment specification:
-    - Number of Unique Values
-    - Number of Rows with Missing Values
-    - Number of Empty Rows
-    - Number of Rows with Only Whitespaces
-    - Number of Rows with Only Lowercases
-    - Number of Rows with Only Uppercases
-    - Number of Rows with Only Alphabet
-    - Number of Rows with Only Digits
-    - Mode Value
+        mode_val = None
+        try:
+            m = s.mode(dropna=True)
+            if not m.empty:
+                mode_val = m.iloc[0]
+        except Exception:
+            mode_val = None
 
-    Args:
-        series (pd.Series): Text column selected by the user.
+        summary = pd.DataFrame(
+            {
+                "Description": [
+                    "Number of Unique Values",
+                    "Number of Rows with Missing Values",
+                    "Number of Empty Rows",
+                    "Number of Rows with Only Whitespaces",
+                    "Number of Rows with Only Lowercases",
+                    "Number of Rows with Only Uppercases",
+                    "Number of Rows with Only Alphabet",
+                    "Number of Rows with Only Digits",
+                    "Mode Value",
+                ],
+                "Value": [
+                    n_unique,
+                    n_missing,
+                    n_empty,
+                    n_only_whitespace,
+                    n_only_lower,
+                    n_only_upper,
+                    n_only_alpha,
+                    n_only_digits,
+                    mode_val,
+                ],
+            }
+        )
+        return summary
 
-    Returns:
-        pd.DataFrame: Two-column summary table: Description | Value
-    """
-    s = _convert_to_string(series)
-    total = len(s)
-    missing = s.isna().sum()
-    s_filled = s.fillna("")
+    def _clean_for_count(self, column: str) -> pd.Series:
+        """
+        Create a safe series for counting/charting:
+          - NaN → "<MISSING>"
+          - "" (empty) → "<EMPTY>"
+          - whitespace-only → "<WHITESPACE>"
+        """
+        s = self._ensure_df()[column]
+        s = s.astype(object)  # keep None/np.nan
+        out = s.copy()
 
-    # pattern checks
-    empty = (s_filled == "").sum()
-    whitespace_only = s_filled.str.fullmatch(r"\s+").sum()
-    lower_only = s_filled.str.fullmatch(r"[a-z]+").sum()
-    upper_only = s_filled.str.fullmatch(r"[A-Z]+").sum()
-    alpha_only = s_filled.str.fullmatch(r"[A-Za-z]+").sum()
-    digits_only = s_filled.str.fullmatch(r"\d+").sum()
+        # Replace NaN
+        out = out.where(~pd.isna(out), other="<MISSING>")
 
-    # mode value
-    mode_val = "N/A"
-    mode_series = s.dropna().mode()
-    if not mode_series.empty:
-        mode_val = str(mode_series.iloc[0])
+        # Convert to string for empties/whitespace detection
+        s_str = s.astype(str)
+        mask_empty = s_str.eq("")
+        mask_ws = s_str.str.fullmatch(r"\s+").fillna(False)
 
-    summary = [
-        ("Number of Unique Values", int(s.nunique(dropna=True))),
-        ("Number of Rows with Missing Values", int(missing)),
-        ("Number of Empty Rows", int(empty)),
-        ("Number of Rows with Only Whitespaces", int(whitespace_only)),
-        ("Number of Rows with Only Lowercases", int(lower_only)),
-        ("Number of Rows with Only Uppercases", int(upper_only)),
-        ("Number of Rows with Only Alphabet", int(alpha_only)),
-        ("Number of Rows with Only Digits", int(digits_only)),
-        ("Mode Value", mode_val),
-    ]
+        out = out.astype(str)
+        out[mask_empty] = "<EMPTY>"
+        out[mask_ws] = "<WHITESPACE>"
 
-    return pd.DataFrame(summary, columns=["Description", "Value"])
+        return out
 
+    def bar_chart(self, column: str):
+        """
+        Return an Altair bar chart of value counts (descending).
+        """
+        series = self._clean_for_count(column)
+        vc = series.value_counts(dropna=False)
+        data = vc.reset_index()
+        data.columns = [column, "Count"]
 
-def top_frequencies(series: pd.Series, top_n: int = 20) -> pd.DataFrame:
-    """
-    Generate frequency table for top N values of a text column.
+        chart = (
+            alt.Chart(data)
+            .mark_bar()
+            .encode(
+                x=alt.X("Count:Q", title="Count of Records"),
+                y=alt.Y(f"{column}:N", sort="-x", title=column),
+                tooltip=[alt.Tooltip(f"{column}:N"), alt.Tooltip("Count:Q")],
+            )
+            .properties(height=400)
+        )
+        return chart
 
-    Args:
-        series (pd.Series): Text column.
-        top_n (int, optional): Number of top items to return. Default = 20.
-
-    Returns:
-        pd.DataFrame: Columns [value, occurrence, percentage]
-    """
-    total = len(series)
-    counts = series.value_counts(dropna=False).head(top_n)
-    df_out = pd.DataFrame({
-        "value": counts.index.astype(str),
-        "occurrence": counts.values,
-        "percentage": (counts.values / total).round(4),
-    })
-    return df_out
+    def frequent(self, column: str, top_n: int = 20) -> pd.DataFrame:
+        """
+        Return the top-N most frequent values with percentage.
+        """
+        series = self._clean_for_count(column)
+        vc = series.value_counts(dropna=False)
+        total = int(vc.sum())
+        df_top = (
+            vc.head(top_n)
+            .reset_index()
+            .rename(columns={"index": "value", 0: "occ"})
+        )
+        df_top.columns = ["value", "occ"]
+        df_top["percentage"] = (df_top["occ"] / total).round(4)
+        return df_top
