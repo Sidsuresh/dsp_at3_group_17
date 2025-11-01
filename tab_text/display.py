@@ -32,3 +32,42 @@ def display_tab_text_content(file_path=None, df=None):
     if df is None:
         st.warning("No valid CSV loaded. Please upload a CSV file to see analysis.")
         return
+    
+    # Instantiate TextColumn class and set it into Streamlit session state
+    st.session_state["text_column"] = TextColumn(file_path=file_path, df=df)
+
+    # Call find_text_cols() method to find all textual columns
+    st.session_state.text_column.find_text_cols()
+
+    # If no textual columns found, show message
+    if not st.session_state.text_column.cols_list:
+        st.warning("No textual columns found in the dataset.")
+        return
+    
+    # Select box to choose numeric column
+    selected_col = st.selectbox(
+        label="Which textual column do you want to explore?",
+        options=st.session_state.text_column.cols_list
+    )
+
+    # Set selected column in session state
+    st.session_state["selected_text_col"] = selected_col
+
+    if st.session_state.selected_text_col:
+        st.session_state.text_column.set_data(st.session_state.selected_text_col)
+
+        with st.expander("Textual Column Overview", expanded=True):
+
+            # Display summary information as a table
+            summary_df = st.session_state.text_column.get_summary()
+            st.subheader("Summary Information")
+            if summary_df is not None:
+                st.table(summary_df)
+
+            st.subheader("Value Distribution")
+             # Display histogram using altair_chart
+            st.altair_chart(st.session_state.text_column.barchart, use_container_width = True)
+
+            st.subheader("Most Frequent Values")
+            # Display frequent values
+            st.dataframe(st.session_state.text_column.frequent)

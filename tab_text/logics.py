@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
+
 import pandas as pd
 import altair as alt
 
@@ -64,6 +67,33 @@ class TextColumn:
         -> None
 
         """
+        # Load dataframe if not provided
+        if self.df is None and self.file_path is not None:
+            self.df = pd.read_csv(self.file_path)
+        
+        # Find textual columns
+        if self.df is not None:
+            text_cols = self.df.select_dtypes(include=['object', 'string']).columns.tolist()
+            non_date_text_cols = []
+
+            # Filtering the textual columns to remove possible columns that could be datetime-type
+            for col in text_cols:
+                try:
+                    # Try to parse as datetime — if it succeeds for most values, skip it
+                    parsed = pd.to_datetime(self.df[col], errors='coerce')
+                    date_ratio = parsed.notna().mean()  # fraction of valid datetimes
+                    
+                    # Keep the column only if less than 80% of values look like dates
+                    if date_ratio < 0.8:
+                        non_date_text_cols.append(col)
+                except (ValueError, TypeError):
+                    # If conversion fails completely, definitely a text column
+                    non_date_text_cols.append(col)
+
+            self.cols_list = non_date_text_cols
+            print("Text Columns Found (excluding date-like): ", self.cols_list)
+
+        
         
 
     def set_data(self, col_name):
@@ -86,6 +116,25 @@ class TextColumn:
         --------------------
         -> None
         """
+        if self.df is not None and col_name in self.df.columns:
+            # Set serie attribute
+            self.serie = self.df[col_name]
+
+            # Convert serie to numeric
+            self.convert_serie_to_text()
+            
+            # Compute all requested information
+            self.set_unique()
+            self.set_missing()
+            self.set_empty()
+            self.set_mode()
+            self.set_whitespace()
+            self.set_lowercase()
+            self.set_uppercase()
+            self.set_alphabet()
+            self.set_digit()
+            self.set_barchart()
+            self.set_frequent()
         
 
     def convert_serie_to_text(self):
@@ -106,6 +155,11 @@ class TextColumn:
         -> None
 
         """
+        if self.serie is not None:
+            # Convert serie to string/text
+            self.serie = self.serie.astype(str)
+            print("Serie converted to text", self.serie.dtype)
+
         
 
     def is_serie_none(self):
@@ -126,7 +180,8 @@ class TextColumn:
         -> (bool): Flag stating if the serie is empty or not
 
         """
-        
+        # Check if serie is None or empty
+        return self.serie is None or self.serie.empty
 
     def set_unique(self):
         """
@@ -146,6 +201,10 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Compute number of unique values
+            self.n_unique = self.serie.nunique()
+            print("Unique Values: ", self.n_unique)
         
 
     def set_missing(self):
@@ -166,6 +225,10 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Compute number of missing values
+            self.n_missing = self.serie.isnull().sum()
+            print("Missing Values: ", self.n_missing)
         
 
     def set_empty(self):
@@ -186,6 +249,10 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Compute number of empty values
+            self.n_empty = (self.serie == '').sum()
+            print("Empty Values: ", self.n_empty)
         
 
     def set_mode(self):
@@ -206,6 +273,10 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Compute the mode value of the series
+            self.n_mode = self.serie.mode().iloc[0] if not self.serie.mode().empty else None
+
         
 
     def set_whitespace(self):
@@ -226,6 +297,10 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Comopute number of spaces
+            self.n_space = (self.serie.str.strip() == '').sum()
+
         
 
     def set_lowercase(self):
@@ -246,6 +321,8 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            self.n_lower = self.serie.str.islower().sum()
         
 
     def set_uppercase(self):
@@ -266,6 +343,8 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            self.n_upper = self.serie.str.isupper().sum()
         
     
     def set_alphabet(self):
@@ -286,6 +365,8 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            self.n_alpha = self.serie.str.isalpha().sum()
         
 
     def set_digit(self):
@@ -306,6 +387,8 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            self.n_digit = self.serie.str.isdigit().sum()
         
 
     def set_barchart(self):  
@@ -326,6 +409,14 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Compute barchart
+            self.barchart = alt.Chart(pd.DataFrame({'value': self.serie})).mark_bar().encode(
+                alt.X('value', title=self.serie.name),
+                alt.Y('count()', title='Count of Records')
+            ).properties(
+                title='Barchart'
+            )
         
       
     def set_frequent(self, end=20):
@@ -347,6 +438,18 @@ class TextColumn:
         -> None
 
         """
+        if not self.is_serie_none():
+            # Compute frequent values
+            freq_series = self.serie.value_counts(dropna=True).head(end)
+            # Compute total count for percentage calculation
+            total_count = len(self.serie.dropna())
+            # Create DataFrame for frequent values
+            self.frequent = pd.DataFrame({
+                'value': freq_series.index,
+                'occurrence': freq_series.values,
+                'percentage': ((freq_series.values / total_count) * 100).round(2)
+            })
+            print("Frequent values set.")
         
 
     def get_summary(self):
@@ -367,4 +470,30 @@ class TextColumn:
         -> (pd.DataFrame): Formatted dataframe to be displayed on the Streamlit app
 
         """
+        if not self.is_serie_none():
+            data = {
+                'Description': [
+                    'Number of Unique Values',
+                    'Number of Rows with Missing Values',
+                    'Number of Empty Strings',
+                    'Number of Rows with Only Whitespaces',
+                    'Number of Rows with Only Lowercase',
+                    'Number of Rows with Only Uppercase',
+                    'Number of Rows with Only Alphabetic',
+                    'Number of Rows with Only Digit',
+                    'Mode Value'
+                ],
+                'Value': [
+                    self.n_unique,
+                    self.n_missing,
+                    self.n_empty,
+                    self.n_space,
+                    self.n_lower,
+                    self.n_upper,
+                    self.n_alpha,
+                    self.n_digit,
+                    self.n_mode
+                ]
+            }
+            return pd.DataFrame(data)
         
