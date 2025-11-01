@@ -135,7 +135,6 @@ class NumericColumn:
         if self.serie is not None:
             # Convert serie to numeric, forcing errors to NaN
             self.serie = pd.to_numeric(self.serie, errors='coerce')
-            print("Serie converted to numeric.", self.serie.dtype)
         
 
     def is_serie_none(self):
@@ -181,7 +180,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute number of unique values
             self.n_unique = self.serie.nunique()
-            print("Unique Values: ", self.n_unique)
         
 
     def set_missing(self):
@@ -205,7 +203,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute number of missing values
             self.n_missing = self.serie.isnull().sum()
-            print("Missing Values: ", self.n_missing)
         
 
     def set_zeros(self):
@@ -229,7 +226,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute number of zeros
             self.n_zeros = (self.serie == 0).sum()
-            print("Zero Values: ", self.n_zeros)
         
 
     def set_negatives(self):
@@ -253,7 +249,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute number of negatives
             self.n_negatives = (self.serie < 0).sum()
-            print("Negative Values: ", self.n_negatives)
         
 
     def set_mean(self):
@@ -277,7 +272,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute mean value
             self.col_mean = self.serie.mean()
-            print("Mean Value: ", self.col_mean)
 
     def set_std(self):
         """
@@ -300,7 +294,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute standard deviation value
             self.col_std = self.serie.std()
-            print("Standard Deviation Value: ", self.col_std)
         
     
     def set_min(self):
@@ -324,7 +317,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute minimum value
             self.col_min = self.serie.min()
-            print("Minimum Value: ", self.col_min)
         
 
     def set_max(self):
@@ -348,7 +340,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute maximum value
             self.col_max = self.serie.max()
-            print("Maximum Value: ", self.col_max)
         
 
     def set_median(self):
@@ -372,7 +363,6 @@ class NumericColumn:
         if not self.is_serie_none():
             # Compute median value
             self.col_median = self.serie.median()
-            print("Median Value: ", self.col_median)
         
 
     def set_histogram(self):
@@ -401,7 +391,6 @@ class NumericColumn:
             ).properties(
                 title='Histogram'
             )
-            print("Histogram set.")
         
 
     def set_frequent(self, end=20):
@@ -434,7 +423,6 @@ class NumericColumn:
                 'occurrence': freq_series.values,
                 'percentage': ((freq_series.values / total_count) * 100).round(2)
             })
-            print("Frequent values set.")
         
     def get_summary(self,):
         """
@@ -479,6 +467,5 @@ class NumericColumn:
                     f"{self.col_median:,.2f}"
                 ]
             }
-            summary_df = pd.DataFrame(data)
-            return summary_df
+            return pd.DataFrame(data)
         

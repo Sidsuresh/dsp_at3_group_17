@@ -147,7 +147,6 @@ class Dataset:
         """
         if not self.is_df_none():
             self.cols_list = self.df.columns.tolist()
-            print("Columns: ", self.cols_list)
         
 
     def set_dimensions(self):
@@ -170,8 +169,7 @@ class Dataset:
         """
         if not self.is_df_none():
             self.n_rows, self.n_cols = self.df.shape
-            print("Rows: ", self.n_rows)
-            print("Cols: ", self.n_cols)
+            
         
 
     def set_duplicates(self):
@@ -194,7 +192,6 @@ class Dataset:
         """
         if not self.is_df_none():
             self.n_duplicates = self.df.duplicated().sum()
-            print("Duplicates: ", self.n_duplicates)
         
 
     def set_missing(self):
@@ -218,9 +215,6 @@ class Dataset:
         if not self.is_df_none():
             # Find number of rows with missing values
             self.n_missing = self.df.isnull().any(axis=1).sum()
-            # Alternatively, to find total number of missing values in the dataframe, uncomment the following line
-            # self.n_missing = self.df.isnull().sum().sum()
-            print("Missing Values: ", self.n_missing)
         
 
     def set_numeric(self):
@@ -243,7 +237,6 @@ class Dataset:
         """
         if not self.is_df_none():
             self.n_num_cols = self.df.select_dtypes(include = ['number']).shape[1]
-            print("Numeric Columns: ", self.n_num_cols)
         
 
     def set_text(self):
@@ -266,7 +259,6 @@ class Dataset:
         """
         if not self.is_df_none():
             self.n_text_cols = self.df.select_dtypes(include = ['object', 'string']).shape[1]
-            print("Text Columns: ", self.n_text_cols)
         
 
     def get_head(self, n=5):
@@ -361,7 +353,6 @@ class Dataset:
                 "Memory Usage": [self.df[col].memory_usage(deep=True) for col in self.df.columns]
             }
             self.table = pd.DataFrame(info)
-            print("Table info set.", self.table)
 
 
     def get_summary(self):

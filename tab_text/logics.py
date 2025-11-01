@@ -1,5 +1,5 @@
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import pandas as pd
 import altair as alt
@@ -158,7 +158,7 @@ class TextColumn:
         if self.serie is not None:
             # Convert serie to string/text
             self.serie = self.serie.astype(str)
-            print("Serie converted to text", self.serie.dtype)
+
 
         
 
@@ -180,8 +180,9 @@ class TextColumn:
         -> (bool): Flag stating if the serie is empty or not
 
         """
-        # Check if serie is None or empty
+        #Check if serie is None or empty
         return self.serie is None or self.serie.empty
+
 
     def set_unique(self):
         """
@@ -204,7 +205,6 @@ class TextColumn:
         if not self.is_serie_none():
             # Compute number of unique values
             self.n_unique = self.serie.nunique()
-            print("Unique Values: ", self.n_unique)
         
 
     def set_missing(self):
@@ -228,7 +228,6 @@ class TextColumn:
         if not self.is_serie_none():
             # Compute number of missing values
             self.n_missing = self.serie.isnull().sum()
-            print("Missing Values: ", self.n_missing)
         
 
     def set_empty(self):
@@ -252,7 +251,6 @@ class TextColumn:
         if not self.is_serie_none():
             # Compute number of empty values
             self.n_empty = (self.serie == '').sum()
-            print("Empty Values: ", self.n_empty)
         
 
     def set_mode(self):
@@ -445,11 +443,10 @@ class TextColumn:
             total_count = len(self.serie.dropna())
             # Create DataFrame for frequent values
             self.frequent = pd.DataFrame({
-                'value': freq_series.index,
+                'value': freq_series.index.astype(str),
                 'occurrence': freq_series.values,
                 'percentage': ((freq_series.values / total_count) * 100).round(2)
             })
-            print("Frequent values set.")
         
 
     def get_summary(self):
@@ -496,4 +493,5 @@ class TextColumn:
                 ]
             }
             return pd.DataFrame(data)
+        
         

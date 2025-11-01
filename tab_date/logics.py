@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
+
 import pandas as pd
 import altair as alt
 
@@ -76,9 +79,11 @@ class DateColumn:
             # If no datetime columns found, look for text columns that can be converted to datetime
             if not self.cols_list:
                 for col in self.df.select_dtypes(include=['object']).columns:
-                    try:
-                        pd.to_datetime(self.df[col])
-                        self.cols_list.append(col)
+                    try: 
+                        parsed = pd.to_datetime(self.df[col], errors='coerce')
+                        date_ratio = parsed.notna().mean()  # fraction of parsable dates
+                        if date_ratio >= 0.8:
+                            self.cols_list.append(col)
                     except (ValueError, TypeError):
                         continue
             
@@ -147,7 +152,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Convert serie to datetime
             self.serie = pd.to_datetime(self.serie, errors='coerce')
-            print(f"Converted serie to datetime: {self.serie.dtype}")
         
 
     def is_serie_none(self):
@@ -193,7 +197,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of unique values
             self.n_unique = self.serie.nunique()
-            print(f"Number of unique values: {self.n_unique}")
 
     def set_missing(self):
         """
@@ -216,7 +219,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of missing values
             self.n_missing = self.serie.isnull().sum()
-            print(f"Number of missing values: {self.n_missing}")
         
 
     def set_min(self):
@@ -240,7 +242,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute minimum value
             self.col_min = self.serie.min()
-            print(f"Minimum value: {self.col_min}")
         
 
     def set_max(self):
@@ -264,7 +265,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute maximum value
             self.col_max = self.serie.max()
-            print(f"Maximum value: {self.col_max}")
         
 
     def set_weekend(self):
@@ -288,7 +288,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of weekend dates
             self.n_weekend = self.serie.dt.dayofweek.isin([5, 6]).sum()
-            print(f"Number of weekend dates: {self.n_weekend}")
         
 
     def set_weekday(self):
@@ -312,7 +311,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of weekday dates
             self.n_weekday = self.serie.dt.dayofweek.isin([0, 1, 2, 3, 4]).sum()
-            print(f"Number of weekday dates: {self.n_weekday}")
         
 
     def set_future(self):
@@ -344,7 +342,6 @@ class DateColumn:
                 current_date = pd.Timestamp.now().tz_localize(None)
 
             self.n_future = (self.serie > current_date).sum()
-            print(f"Number of future dates: {self.n_future}")
         
     
     def set_empty_1900(self):
@@ -368,7 +365,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of times '1900-01-01' appears
             self.n_empty_1900 = (self.serie == pd.Timestamp('1900-01-01')).sum()
-            print(f"Number of '1900-01-01' dates: {self.n_empty_1900}")
         
 
     def set_empty_1970(self):
@@ -392,7 +388,6 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of times '1970-01-01' appears
             self.n_empty_1970 = (self.serie == pd.Timestamp('1970-01-01')).sum()
-            print(f"Number of '1970-01-01' dates: {self.n_empty_1970}")
         
 
     def set_barchart(self):  
@@ -453,7 +448,6 @@ class DateColumn:
                 'occurrence': freq_series.values,
                 'percentage': (freq_series.values / total_count * 100).round(2)
             })
-            print("Frequent values dataframe created.")
 
         
 
