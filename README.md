@@ -38,7 +38,7 @@ This is an interactive **Streamlit**-based application that enables users to **u
 
 ```bash
 git clone https://github.com/Sidsuresh/dsp_at3_group_17.git
-cd dsp_at3_group17
+cd dsp_at3_group17/
 ```
 
 - Create and activate a virtual environment:
