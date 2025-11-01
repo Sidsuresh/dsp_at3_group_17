@@ -58,8 +58,11 @@ def display_tab_df_content(file_path):
         method = st.radio(label = "Exploration Method", options = ["Head", "Tail", "Sample"])
 
         if method == "Head":
-            st.dataframe(st.session_state.dataset.get_head(n_rows))
+            # st.write("Top Rows from the Dataframe")
+            st.dataframe(st.session_state.dataset.get_head(n_rows), use_container_width=True)
         elif method == "Tail":
-            st.dataframe(st.session_state.dataset.get_tail(n_rows))
+            # st.write("Bottom Rows from the Dataframe")
+            st.dataframe(st.session_state.dataset.get_tail(n_rows), use_container_width=True)
         elif method == "Sample":
-            st.dataframe(st.session_state.dataset.get_sample(n_rows))
+            # st.write("Random Sample of Rows from the Dataframe")
+            st.dataframe(st.session_state.dataset.get_sample(n_rows), use_container_width=True)

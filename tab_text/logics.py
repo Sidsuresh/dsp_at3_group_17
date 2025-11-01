@@ -407,14 +407,27 @@ class TextColumn:
         -> None
 
         """
-        if not self.is_serie_none():
-            # Compute barchart
-            self.barchart = alt.Chart(pd.DataFrame({'value': self.serie})).mark_bar().encode(
-                alt.X('value', title=self.serie.name),
-                alt.Y('count()', title='Count of Records')
-            ).properties(
-                title='Barchart'
+        # Compute top 30 frequent values
+        value_counts = self.serie.value_counts().reset_index()
+        value_counts.columns = ['value', 'count']
+        value_counts = value_counts.head(30)  # change to 40 if desired
+
+        # Create Altair bar chart
+        self.barchart = (
+            alt.Chart(value_counts)
+            .mark_bar()
+            .encode(
+                x=alt.X('value:N', title=self.serie.name, sort='-y'),
+                y=alt.Y('count:Q', title='Count of Records'),
+                tooltip=['value', 'count']
             )
+            .properties(
+                title=f'Barchart for {self.serie.name}'
+            )
+            .configure_axisX(labelAngle=-45)  # tilt labels for readability
+        )
+
+
         
       
     def set_frequent(self, end=20):
@@ -472,7 +485,7 @@ class TextColumn:
                 'Description': [
                     'Number of Unique Values',
                     'Number of Rows with Missing Values',
-                    'Number of Empty Strings',
+                    'Number of Empty Rows',
                     'Number of Rows with Only Whitespaces',
                     'Number of Rows with Only Lowercase',
                     'Number of Rows with Only Uppercase',

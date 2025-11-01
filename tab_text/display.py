@@ -58,13 +58,11 @@ def display_tab_text_content(file_path=None, df=None):
 
         with st.expander("Textual Column Overview", expanded=True):
 
+            st.subheader("Summary Information")
             # Display summary information as a table
             summary_df = st.session_state.text_column.get_summary()
             if summary_df is not None:
                 summary_df = summary_df.astype(str)
-                st.table(summary_df)
-            st.subheader("Summary Information")
-            if summary_df is not None:
                 st.table(summary_df)
 
             st.subheader("Value Distribution")
@@ -73,4 +71,4 @@ def display_tab_text_content(file_path=None, df=None):
 
             st.subheader("Most Frequent Values")
             # Display frequent values
-            st.dataframe(st.session_state.text_column.frequent.astype(str))
+            st.dataframe(st.session_state.text_column.frequent.astype(str), use_container_width=True)
