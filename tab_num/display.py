@@ -70,7 +70,7 @@ def display_tab_num_content(file_path=None, df=None):
 
             st.subheader("Most Frequent Values")
             # Display frequent values
-            st.dataframe(st.session_state.num_column.frequent, width='stretch')
+            st.dataframe(st.session_state.num_column.frequent, use_container_width=True)
 
 
 

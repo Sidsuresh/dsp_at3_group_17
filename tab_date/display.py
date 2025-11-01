@@ -70,4 +70,4 @@ def display_tab_date_content(file_path=None, df=None):
 
             # Display frequent values
             st.subheader("Most Frequent Values")
-            st.dataframe(st.session_state.date_column.frequent, width='stretch')
+            st.dataframe(st.session_state.date_column.frequent, use_container_width=True)
