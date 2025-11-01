@@ -3,6 +3,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pandas")
 
 import pandas as pd
 import altair as alt
+import dateparser
 
 class DateColumn:
     """
@@ -80,9 +81,15 @@ class DateColumn:
             if not self.cols_list:
                 for col in self.df.select_dtypes(include=['object']).columns:
                     try: 
-                        parsed = pd.to_datetime(self.df[col], errors='coerce')
-                        date_ratio = parsed.notna().mean()  # fraction of parsable dates
-                        if date_ratio >= 0.8:
+                        # Safe parse function
+                        def safe_parse(x):
+                            if pd.isna(x) or str(x).strip() == "":
+                                return pd.NaT  # Keep nulls as NaT
+                            return dateparser.parse(str(x))
+                        parsed = self.df[col].apply(safe_parse)
+                        # Fraction of parsable dates
+                        date_ratio = parsed.notna().mean()
+                        if date_ratio >= 0.3:
                             self.cols_list.append(col)
                     except (ValueError, TypeError):
                         continue
@@ -151,7 +158,23 @@ class DateColumn:
 
         if not self.is_serie_none():
             # Convert serie to datetime
-            self.serie = pd.to_datetime(self.serie, errors='coerce')
+          
+            # Safe parse function
+            def safe_parse(x, dayfirst = True):
+                if pd.isna(x) or str(x).strip() == "":
+                    return pd.NaT  # Keep nulls as NaT
+                settings = {
+                    'DATE_ORDER': 'DMY' if dayfirst else 'MDY',
+                    'PREFER_DAY_OF_MONTH': 'first',
+                    'RETURN_AS_TIMEZONE_AWARE': False
+                }
+                return dateparser.parse(str(x), settings=settings)
+            
+            # Apply parsing
+            parsed = self.serie.apply(safe_parse)
+            
+            # Convert to pandas datetime (ensures consistent dtype)
+            self.serie = pd.to_datetime(parsed, dayfirst=True, errors='coerce')
         
 
     def is_serie_none(self):
@@ -288,6 +311,7 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of weekend dates
             self.n_weekend = self.serie.dt.dayofweek.isin([5, 6]).sum()
+            
         
 
     def set_weekday(self):
@@ -311,6 +335,7 @@ class DateColumn:
         if not self.is_serie_none():
             # Compute number of weekday dates
             self.n_weekday = self.serie.dt.dayofweek.isin([0, 1, 2, 3, 4]).sum()
+
         
 
     def set_future(self):

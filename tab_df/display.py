@@ -65,4 +65,4 @@ def display_tab_df_content(file_path):
             st.dataframe(st.session_state.dataset.get_tail(n_rows), use_container_width=True)
         elif method == "Sample":
             # st.write("Random Sample of Rows from the Dataframe")
-            st.dataframe(st.session_state.dataset.get_sample(n_rows), use_container_width=True)
+            st.dataframe(st.session_state.dataset.get_sample(n_rows), width='stretch')

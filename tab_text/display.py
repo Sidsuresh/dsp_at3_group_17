@@ -71,4 +71,4 @@ def display_tab_text_content(file_path=None, df=None):
 
             st.subheader("Most Frequent Values")
             # Display frequent values
-            st.dataframe(st.session_state.text_column.frequent.astype(str), use_container_width=True)
+            st.dataframe(st.session_state.text_column.frequent.astype(str), width='stretch')

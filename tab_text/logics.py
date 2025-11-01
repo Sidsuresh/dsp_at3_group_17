@@ -1,6 +1,8 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
+import dateparser
+
 import pandas as pd
 import altair as alt
 
@@ -79,8 +81,13 @@ class TextColumn:
             # Filtering the textual columns to remove possible columns that could be datetime-type
             for col in text_cols:
                 try:
+                    # Safe parse function
+                    def safe_parse(x):
+                        if pd.isna(x) or str(x).strip() == "":
+                            return pd.NaT  # Keep nulls as NaT
+                        return dateparser.parse(str(x))
                     # Try to parse as datetime — if it succeeds for most values, skip it
-                    parsed = pd.to_datetime(self.df[col], errors='coerce')
+                    parsed = self.df[col].apply(safe_parse)
                     date_ratio = parsed.notna().mean()  # fraction of valid datetimes
                     
                     # Keep the column only if less than 80% of values look like dates
@@ -157,9 +164,7 @@ class TextColumn:
         """
         if self.serie is not None:
             # Convert serie to string/text
-            self.serie = self.serie.astype(str)
-
-
+            self.serie = self.serie.astype("string")
         
 
     def is_serie_none(self):
@@ -204,7 +209,7 @@ class TextColumn:
         """
         if not self.is_serie_none():
             # Compute number of unique values
-            self.n_unique = self.serie.nunique()
+            self.n_unique = self.serie.dropna().nunique()
         
 
     def set_missing(self):
@@ -250,7 +255,7 @@ class TextColumn:
         """
         if not self.is_serie_none():
             # Compute number of empty values
-            self.n_empty = (self.serie == '').sum()
+            self.n_empty = (self.serie.dropna() == '').sum()
         
 
     def set_mode(self):
@@ -273,7 +278,7 @@ class TextColumn:
         """
         if not self.is_serie_none():
             # Compute the mode value of the series
-            self.n_mode = self.serie.mode().iloc[0] if not self.serie.mode().empty else None
+            self.n_mode = self.serie.dropna().mode().iloc[0] if not self.serie.dropna().mode().empty else None
 
         
 
@@ -297,7 +302,7 @@ class TextColumn:
         """
         if not self.is_serie_none():
             # Comopute number of spaces
-            self.n_space = (self.serie.str.strip() == '').sum()
+            self.n_space = (self.serie.dropna().str.strip() == '').sum()
 
         
 
@@ -320,7 +325,7 @@ class TextColumn:
 
         """
         if not self.is_serie_none():
-            self.n_lower = self.serie.str.islower().sum()
+            self.n_lower = self.serie.dropna().str.islower().sum()
         
 
     def set_uppercase(self):
@@ -342,7 +347,7 @@ class TextColumn:
 
         """
         if not self.is_serie_none():
-            self.n_upper = self.serie.str.isupper().sum()
+            self.n_upper = self.serie.dropna().str.isupper().sum()
         
     
     def set_alphabet(self):
@@ -364,7 +369,7 @@ class TextColumn:
 
         """
         if not self.is_serie_none():
-            self.n_alpha = self.serie.str.isalpha().sum()
+            self.n_alpha = self.serie.dropna().str.isalpha().sum()
         
 
     def set_digit(self):
@@ -386,7 +391,7 @@ class TextColumn:
 
         """
         if not self.is_serie_none():
-            self.n_digit = self.serie.str.isdigit().sum()
+            self.n_digit = self.serie.dropna().str.isdigit().sum()
         
 
     def set_barchart(self):  
