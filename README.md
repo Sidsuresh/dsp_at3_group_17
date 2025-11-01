@@ -38,7 +38,7 @@ This is an interactive **Streamlit**-based application that enables users to **u
 
 ```bash
 git clone https://github.com/Sidsuresh/dsp_at3_group_17.git
-cd dsp_at3_group17/
+cd dsp_at3_group_17/
 ```
 
 - Create and activate a virtual environment:
@@ -97,7 +97,7 @@ Once launched, a browser window will open automatically at:
 ## Project Structure
 
 ```bash
-dsp_at3_group17/
+dsp_at3_group_17/
 │
 ├── README.md                   # Project overview and setup instructions
 ├── requirements.txt            # Python package dependencies
